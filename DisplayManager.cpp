@@ -30,24 +30,22 @@ Adafruit_ST7789& DisplayManager::getTFT() {
 
 void DisplayManager::showBootScreen(const String &status, int progress) {
     _tft.fillScreen(COLOR_BG);
-
-    // Titolo OS
-    _tft.setTextSize(3);
-    _tft.setTextColor(COLOR_ACCENT_CYAN);
-    _tft.setCursor(65, 50);
-    _tft.print(F("GeoOS ESP32"));
-
-    // Sottotitolo
+    _tft.setFont(&Roboto_Bold12pt7b);
     _tft.setTextSize(1);
-    _tft.setTextColor(COLOR_TEXT_MUTED);
-    _tft.setCursor(75, 85);
-    _tft.print(F("Wikipedia & GPS Companion v1.0"));
+    _tft.setTextColor(COLOR_ACCENT_AMBER);
+
+    int16_t x1, y1;
+    uint16_t w, h;
+    _tft.getTextBounds(F("Wik(in)Side"), 0, 0, &x1, &y1, &w, &h);
+    _tft.setCursor(65, 70);
+    _tft.print(F("Wik(in)Side"));
+
 
     // Barra di caricamento
     int barW = 200;
     int barH = 10;
-    int barX = (SCREEN_WIDTH - barW) / 2;
-    int barY = 140;
+    int barX = 25;
+    int barY = 280;
 
     _tft.drawRoundRect(barX - 2, barY - 2, barW + 4, barH + 4, 3, COLOR_CARD_BORDER);
     int fillW = (barW * progress) / 100;
@@ -56,13 +54,14 @@ void DisplayManager::showBootScreen(const String &status, int progress) {
     }
 
     // Stato di caricamento
-    _tft.fillRect(20, 165, SCREEN_WIDTH - 40, 20, COLOR_BG);
+    _tft.fillRect(20, 165, SCREEN_WIDTH - 40, 24, COLOR_BG);
+    _tft.setFont(NULL);
     _tft.setTextSize(1);
     _tft.setTextColor(COLOR_TEXT_WHITE);
     int textX = (SCREEN_WIDTH - (status.length() * 6)) / 2;
     if (textX < 20) textX = 20;
-    _tft.setCursor(textX, 165);
-    _tft.print(status);
+    // _tft.setCursor(textX, 172);
+    // _tft.print(status);
 }
 
 void DisplayManager::switchView(OSView view) {
@@ -107,143 +106,151 @@ void DisplayManager::resetScroll() {
 }
 
 void DisplayManager::drawStatusBar(bool wifiOk, bool gpsOk, int sats) {
-    _tft.fillRect(0, 0, SCREEN_WIDTH, 22, COLOR_HEADER);
+    _tft.fillRect(0, 0, SCREEN_WIDTH, 24, COLOR_HEADER);
 
-    // Icona / Indicatore WiFi
+    // 1. Icona / Indicatore WiFi (a sinistra)
     uint16_t wifiColor = wifiOk ? COLOR_ACCENT_GREEN : COLOR_ACCENT_RED;
-    _tft.fillCircle(12, 11, 4, wifiColor);
+    _tft.fillCircle(12, 12, 4, wifiColor);
+    _tft.setFont(NULL);
     _tft.setTextSize(1);
     _tft.setTextColor(COLOR_TEXT_WHITE);
     _tft.setCursor(22, 8);
     _tft.print(wifiOk ? F("WiFi") : F("No WiFi"));
 
-    // Nome Vista corrente (al centro)
+    // 2. Nome Vista corrente (al centro, con Roboto Regular)
     const char* viewNames[] = { "ESPLORA", "ARTICOLO", "QR CODE", "RADAR", "IMPOSTAZIONI" };
-    String tabText = String("[") + String((int)_currentView + 1) + "/5 " + viewNames[(int)_currentView] + "]";
-    int tabX = (SCREEN_WIDTH - (tabText.length() * 6)) / 2;
+    const char* tabText = viewNames[(int)_currentView];
+
+    _tft.setFont(&Roboto_Regular9pt7b);
+    _tft.setTextSize(1);
     _tft.setTextColor(COLOR_ACCENT_CYAN);
-    _tft.setCursor(tabX, 8);
+
+    int16_t x1, y1;
+    uint16_t w, h;
+    _tft.getTextBounds(tabText, 0, 0, &x1, &y1, &w, &h);
+    _tft.setCursor((SCREEN_WIDTH - w) / 2, 17);
     _tft.print(tabText);
 
-    // Indicatore GPS (a destra)
-    uint16_t gpsColor = gpsOk ? COLOR_ACCENT_GREEN : COLOR_ACCENT_AMBER;
-    _tft.fillCircle(SCREEN_WIDTH - 65, 11, 4, gpsColor);
+    // 3. Indicatore GPS (a destra)
+    uint16_t gpsColor = gpsOk ? COLOR_ACCENT_GREEN : COLOR_ACCENT_RED;
+    _tft.fillCircle(SCREEN_WIDTH - 60, 12, 4, gpsColor);
+    _tft.setFont(NULL);
+    _tft.setTextSize(1);
     _tft.setTextColor(COLOR_TEXT_WHITE);
-    _tft.setCursor(SCREEN_WIDTH - 55, 8);
+    _tft.setCursor(SCREEN_WIDTH - 52, 8);
     if (gpsOk) {
-        _tft.print(F("GPS:"));
+        _tft.print(F("GPS "));
         _tft.print(sats);
     } else {
-        _tft.print(F("NO FIX"));
+        _tft.print(F("No GPS"));
     }
 
-    _tft.drawFastHLine(0, 22, SCREEN_WIDTH, COLOR_CARD_BORDER);
+    _tft.drawFastHLine(0, 24, SCREEN_WIDTH, COLOR_CARD_BORDER);
 }
 
 void DisplayManager::drawExploreView(const MonumentInfo &monument, float lat, float lon) {
-    _tft.fillRect(0, 23, SCREEN_WIDTH, SCREEN_HEIGHT - 23, COLOR_BG);
+    _tft.fillRect(0, 25, SCREEN_WIDTH, SCREEN_HEIGHT - 25, COLOR_BG);
 
     // Box principale monumento
-    int boxX = 12, boxY = 32, boxW = SCREEN_WIDTH - 24, boxH = 150;
-    _tft.fillRoundRect(boxX, boxY, boxW, boxH, 8, COLOR_CARD_BG);
-    _tft.drawRoundRect(boxX, boxY, boxW, boxH, 8, COLOR_CARD_BORDER);
+    // int boxX = 12, boxY = 34, boxW = SCREEN_WIDTH - 48, boxH = 150;
+    // _tft.fillRoundRect(boxX, boxY, boxW, boxH, 8, COLOR_CARD_BG);
+    // _tft.drawRoundRect(boxX, boxY, boxW, boxH, 8, COLOR_CARD_BORDER);
 
     if (monument.valid) {
-        // Titolo Monumento
-        _tft.setTextSize(2);
+        // Titolo Monumento con Roboto Bold
+        _tft.setFont(&Roboto_Bold12pt7b);
+        _tft.setTextSize(1);
         _tft.setTextColor(COLOR_ACCENT_CYAN);
-        _tft.setCursor(boxX + 12, boxY + 12);
+        _tft.setCursor(boxX + 12, boxY + 28);
         
-        // Troncamento se il titolo è troppo lungo per la riga singola
+        // Troncamento se il titolo è troppo lungo
         String title = monument.title;
-        if (title.length() > 22) {
-            title = title.substring(0, 20) + "..";
+        if (title.length() > 20) {
+            title = title.substring(0, 18) + "..";
         }
         _tft.print(title);
 
-        // Distanza
-        _tft.setTextSize(1);
+        // Distanza stimata
+        _tft.setFont(&Roboto_Regular9pt7b);
         _tft.setTextColor(COLOR_TEXT_MUTED);
-        _tft.setCursor(boxX + 12, boxY + 45);
-        _tft.print(F("Distanza stimata:"));
+        _tft.setCursor(boxX + 12, boxY + 54);
+        _tft.print(F("Distanza:"));
 
-        _tft.setTextSize(3);
+        _tft.setFont(&Roboto_Bold12pt7b);
         _tft.setTextColor(COLOR_ACCENT_AMBER);
-        _tft.setCursor(boxX + 12, boxY + 60);
+        _tft.setCursor(boxX + 12, boxY + 84);
         if (monument.distance >= 1000.0f) {
             _tft.print(monument.distance / 1000.0f, 1);
-            _tft.setTextSize(2);
+            _tft.setFont(&Roboto_Regular9pt7b);
             _tft.print(F(" km"));
         } else {
             _tft.print((int)monument.distance);
-            _tft.setTextSize(2);
+            _tft.setFont(&Roboto_Regular9pt7b);
             _tft.print(F(" m"));
         }
 
         // Anteprima testo
+        _tft.setFont(NULL);
         _tft.setTextSize(1);
         _tft.setTextColor(COLOR_TEXT_WHITE);
-        _tft.setCursor(boxX + 12, boxY + 98);
+        _tft.setCursor(boxX + 12, boxY + 104);
         String preview = monument.extract;
-        if (preview.length() > 75) {
-            preview = preview.substring(0, 72) + "...";
+        if (preview.length() > 140) {
+            preview = preview.substring(0, 137) + "...";
         }
         _tft.print(preview);
 
     } else {
-        _tft.setTextSize(2);
-        _tft.setTextColor(COLOR_TEXT_MUTED);
-        _tft.setCursor(boxX + 25, boxY + 45);
-        _tft.print(F("Ricerca monumenti..."));
-
+        _tft.setFont(&Roboto_Bold12pt7b);
         _tft.setTextSize(1);
-        _tft.setCursor(boxX + 25, boxY + 80);
-        _tft.print(F("In attesa di fix GPS valido"));
-        _tft.setCursor(boxX + 25, boxY + 95);
-        _tft.print(F("o connessione alla rete WiFi."));
+        _tft.setTextColor(COLOR_TEXT_MUTED);
+        _tft.setCursor(boxX + 25, boxY + 60);
+        _tft.print(F("Ricerca"));
+        _tft.setCursor(boxX + 25, boxY + 90);
+        _tft.print(F("monumenti..."));
     }
 
-    // Coordinate attuali in basso
-    _tft.setTextSize(1);
-    _tft.setTextColor(COLOR_TEXT_MUTED);
-    _tft.setCursor(15, 192);
-    _tft.print(F("GPS: "));
-    _tft.print(lat, 5);
-    _tft.print(F(", "));
-    _tft.print(lon, 5);
 
     // Barra istruzioni footer
     _tft.setTextColor(COLOR_ACCENT_CYAN);
-    _tft.setCursor(15, 218);
-    _tft.print(F("[< / >] Cambia Vista   |   [STICK OK] Apri Articolo"));
+    _tft.setCursor(15, 300);
+    _tft.print(F("Muoviti con l'analogico"));
 }
 
 void DisplayManager::drawArticleView(const MonumentInfo &monument) {
-    _tft.fillRect(0, 23, SCREEN_WIDTH, SCREEN_HEIGHT - 23, COLOR_BG);
+    _tft.fillRect(0, 25, SCREEN_WIDTH - 50, SCREEN_HEIGHT - 25, COLOR_BG);
 
     if (!monument.valid || monument.extract.length() == 0) {
+        _tft.setFont(&Roboto_Bold12pt7b);
         _tft.setTextSize(1);
         _tft.setTextColor(COLOR_TEXT_MUTED);
-        _tft.setCursor(30, 80);
-        _tft.print(F("Nessun articolo caricato."));
-        _tft.setCursor(30, 100);
-        _tft.print(F("Trova un monumento nella vista Esplora."));
+        _tft.setCursor(20, 80);
+        _tft.print(F("Nessun articolo"));
+
+        _tft.setFont(&Roboto_Regular9pt7b);
+        _tft.setCursor(20, 115);
+        _tft.print(F("Trova un monumento"));
+        _tft.setCursor(20, 140);
+        _tft.print(F("nella vista Esplora."));
         return;
     }
 
-    // Titolo
-    _tft.setTextSize(2);
+    // Titolo in Roboto Bold
+    _tft.setFont(&Roboto_Bold12pt7b);
+    _tft.setTextSize(1);
     _tft.setTextColor(COLOR_ACCENT_CYAN);
-    _tft.setCursor(12, 30);
+    _tft.setCursor(12, 48);
     String title = monument.title;
-    if (title.length() > 22) title = title.substring(0, 20) + "..";
+    if (title.length() > 20) title = title.substring(0, 18) + "..";
     _tft.print(title);
-    _tft.drawFastHLine(12, 50, SCREEN_WIDTH - 24, COLOR_CARD_BORDER);
+    _tft.drawFastHLine(12, 56, SCREEN_WIDTH - 24, COLOR_CARD_BORDER);
 
-    // Disegna testo a scorrimento
-    wrapAndDrawText(monument.extract, 12, 58, SCREEN_WIDTH - 30, 150, _scrollLine);
+    // Disegna testo a scorrimento in font standard (compatto e scorrevole)
+    _tft.setFont(NULL);
+    wrapAndDrawText(monument.extract, 12, 64, SCREEN_WIDTH - 30, 146, _scrollLine);
 
     // Footer
+    _tft.setFont(NULL);
     _tft.setTextSize(1);
     _tft.setTextColor(COLOR_TEXT_MUTED);
     _tft.setCursor(12, 222);
@@ -251,6 +258,7 @@ void DisplayManager::drawArticleView(const MonumentInfo &monument) {
 }
 
 void DisplayManager::wrapAndDrawText(const String &text, int startX, int startY, int maxW, int maxH, int lineScroll) {
+    _tft.setFont(NULL);
     int maxCharsPerLine = maxW / 6;
     int maxDisplayLines = maxH / 12;
 
@@ -299,36 +307,41 @@ void DisplayManager::wrapAndDrawText(const String &text, int startX, int startY,
 }
 
 void DisplayManager::drawQRView(const MonumentInfo &monument) {
-    _tft.fillRect(0, 23, SCREEN_WIDTH, SCREEN_HEIGHT - 23, COLOR_BG);
+    _tft.fillRect(0, 25, SCREEN_WIDTH, SCREEN_HEIGHT - 25, COLOR_BG);
 
     String urlToEncode = monument.valid ? monument.url : "https://it.wikipedia.org";
 
-    // Genera QR se necessario
+    // Genera QR 
     QR.generate(urlToEncode.c_str());
+    QR.drawToDisplay(_tft, 60, 112, 136, 0x0000, 0xFFFF);
 
-    // Disegna QR Code al centro
-    QR.drawToDisplay(_tft, SCREEN_WIDTH / 2, 115, 140, 0x0000, 0xFFFF);
 
-    // Testo sotto il QR
+    _tft.setFont(&Roboto_Regular9pt7b);
     _tft.setTextSize(1);
     _tft.setTextColor(COLOR_TEXT_WHITE);
-    _tft.setCursor(55, 195);
+
+    int16_t x1, y1;
+    uint16_t w, h;
+    _tft.getTextBounds(F("Inquadra con fotocamera"), 0, 0, &x1, &y1, &w, &h);
+    _tft.setCursor(10, 202);
     _tft.print(F("Inquadra con fotocamera"));
 
+    _tft.setFont(NULL);
+    _tft.setTextSize(1);
     _tft.setTextColor(COLOR_TEXT_MUTED);
     String shortUrl = urlToEncode;
     if (shortUrl.length() > 45) shortUrl = shortUrl.substring(0, 42) + "...";
     int urlX = (SCREEN_WIDTH - (shortUrl.length() * 6)) / 2;
     if (urlX < 10) urlX = 10;
-    _tft.setCursor(urlX, 215);
+    _tft.setCursor(10, 218);
     _tft.print(shortUrl);
 }
 
 void DisplayManager::drawRadarView(const MonumentInfo &monument, float userLat, float userLon) {
-    _tft.fillRect(0, 23, SCREEN_WIDTH, SCREEN_HEIGHT - 23, COLOR_BG);
+    _tft.fillRect(0, 25, SCREEN_WIDTH, SCREEN_HEIGHT - 25, COLOR_BG);
 
     int centerX = 110;
-    int centerY = 130;
+    int centerY = 132;
     int radius = 75;
 
     // Cerchi concentrici radar
@@ -341,6 +354,7 @@ void DisplayManager::drawRadarView(const MonumentInfo &monument, float userLat, 
     _tft.drawFastVLine(centerX, centerY - radius - 5, (radius + 5) * 2, COLOR_CARD_BORDER);
 
     // Lettere cardinali
+    _tft.setFont(NULL);
     _tft.setTextSize(1);
     _tft.setTextColor(COLOR_ACCENT_CYAN);
     _tft.setCursor(centerX - 3, centerY - radius - 15);
@@ -368,72 +382,80 @@ void DisplayManager::drawRadarView(const MonumentInfo &monument, float userLat, 
 
     // Dati monumento a lato (destra)
     int infoX = 205;
+    _tft.setFont(&Roboto_Regular9pt7b);
     _tft.setTextSize(1);
     _tft.setTextColor(COLOR_ACCENT_AMBER);
-    _tft.setCursor(infoX, 50);
+    _tft.setCursor(infoX - 100, 55);
     _tft.print(F("BERSAGLIO:"));
 
     _tft.setTextColor(COLOR_TEXT_WHITE);
-    _tft.setCursor(infoX, 65);
+    _tft.setCursor(infoX, 78);
     if (monument.valid) {
         String t = monument.title;
-        if (t.length() > 14) t = t.substring(0, 12) + "..";
+        if (t.length() > 11) t = t.substring(0, 9) + "..";
         _tft.print(t);
 
         _tft.setTextColor(COLOR_TEXT_MUTED);
-        _tft.setCursor(infoX, 95);
+        _tft.setCursor(infoX, 105);
         _tft.print(F("DISTANZA:"));
-        _tft.setTextSize(2);
+
+        _tft.setFont(&Roboto_Bold12pt7b);
         _tft.setTextColor(COLOR_ACCENT_GREEN);
-        _tft.setCursor(infoX, 110);
+        _tft.setCursor(infoX, 130);
         _tft.print((int)monument.distance);
-        _tft.setTextSize(1);
+        _tft.setFont(&Roboto_Regular9pt7b);
         _tft.print(F("m"));
     } else {
         _tft.print(F("Nessuno"));
     }
 
+    _tft.setFont(NULL);
+    _tft.setTextSize(1);
     _tft.setTextColor(COLOR_TEXT_MUTED);
     _tft.setCursor(15, 222);
     _tft.print(F("Radar portata max: 500m"));
 }
 
 void DisplayManager::drawSettingsView(bool wifiOk) {
-    _tft.fillRect(0, 23, SCREEN_WIDTH, SCREEN_HEIGHT - 23, COLOR_BG);
+    _tft.fillRect(0, 25, SCREEN_WIDTH, SCREEN_HEIGHT - 25, COLOR_BG);
 
-    int startY = 40;
-    _tft.setTextSize(2);
+    int startY = 48;
+    _tft.setFont(&Roboto_Bold12pt7b);
+    _tft.setTextSize(1);
     _tft.setTextColor(COLOR_ACCENT_CYAN);
     _tft.setCursor(20, startY);
     _tft.print(F("Impostazioni OS"));
-    _tft.drawFastHLine(20, startY + 22, SCREEN_WIDTH - 40, COLOR_CARD_BORDER);
+    _tft.drawFastHLine(20, startY + 8, SCREEN_WIDTH - 40, COLOR_CARD_BORDER);
 
+    _tft.setFont(&Roboto_Regular9pt7b);
     _tft.setTextSize(1);
     _tft.setTextColor(COLOR_TEXT_WHITE);
 
-    _tft.setCursor(20, startY + 35);
+    _tft.setCursor(20, startY + 34);
     _tft.print(F("Raggio Ricerca:   "));
     _tft.setTextColor(COLOR_ACCENT_AMBER);
     _tft.print(WIKI_DEFAULT_RADIUS);
     _tft.print(F(" m"));
 
     _tft.setTextColor(COLOR_TEXT_WHITE);
-    _tft.setCursor(20, startY + 55);
-    _tft.print(F("Feedback Audio:   ATTIVO (Buzzer)"));
+    _tft.setCursor(20, startY + 58);
+    _tft.print(F("Feedback Audio:   ATTIVO"));
 
-    _tft.setCursor(20, startY + 75);
-    _tft.print(F("Feedback Aptico:  ATTIVO (Vibrazione)"));
+    _tft.setCursor(20, startY + 82);
+    _tft.print(F("Feedback Aptico:  ATTIVO"));
 
-    _tft.setCursor(20, startY + 95);
+    _tft.setCursor(20, startY + 106);
     _tft.print(F("Rete Wi-Fi:       "));
     _tft.setTextColor(wifiOk ? COLOR_ACCENT_GREEN : COLOR_ACCENT_RED);
     _tft.print(wifiOk ? F("CONNESSO") : F("DISCONNESSO"));
 
+    _tft.setFont(NULL);
+    _tft.setTextSize(1);
     _tft.setTextColor(COLOR_TEXT_MUTED);
-    _tft.setCursor(20, startY + 125);
+    _tft.setCursor(20, startY + 130);
     _tft.print(F("Modalita Test: Digita \"TEST\" sulla seriale"));
 
-    _tft.setCursor(20, 215);
+    _tft.setCursor(20, 218);
     _tft.setTextColor(COLOR_ACCENT_CYAN);
     _tft.print(F("[◄/►] Cambia Vista"));
 }
@@ -507,37 +529,40 @@ void DisplayManager::showTestModeScreen(const String &testName, const String &in
     _tft.fillScreen(0x0000); // Nero assoluto
 
     // Banner superiore di test
-    _tft.fillRect(0, 0, SCREEN_WIDTH, 30, COLOR_ACCENT_AMBER);
-    _tft.setTextSize(2);
+    _tft.fillRect(0, 0, SCREEN_WIDTH, 32, COLOR_ACCENT_AMBER);
+    _tft.setFont(&Roboto_Bold12pt7b);
+    _tft.setTextSize(1);
     _tft.setTextColor(0x0000);
-    _tft.setCursor(15, 7);
+    _tft.setCursor(15, 23);
     _tft.print(F("DIAGNOSTICA SERIALE"));
 
     // Nome del test
-    _tft.setTextSize(2);
+    _tft.setFont(&Roboto_Bold12pt7b);
     _tft.setTextColor(COLOR_ACCENT_CYAN);
-    _tft.setCursor(15, 45);
+    _tft.setCursor(15, 58);
     _tft.print(testName);
     _tft.drawFastHLine(15, 68, SCREEN_WIDTH - 30, COLOR_CARD_BORDER);
 
     // Linee descrittive
-    _tft.setTextSize(1);
+    _tft.setFont(&Roboto_Regular9pt7b);
     _tft.setTextColor(COLOR_TEXT_WHITE);
-    _tft.setCursor(15, 80);
+    _tft.setCursor(15, 92);
     _tft.print(info1);
 
     if (info2.length() > 0) {
-        _tft.setCursor(15, 98);
+        _tft.setCursor(15, 114);
         _tft.print(info2);
     }
 
+    _tft.setFont(NULL);
+    _tft.setTextSize(1);
     _tft.setTextColor(COLOR_ACCENT_AMBER);
     _tft.setCursor(15, 215);
     _tft.print(F("Invia 'X' o premi pulsante per uscire"));
 }
 
 void DisplayManager::renderLiveJoyCrosshair(int rawX, int rawY, bool pressed) {
-    // Reinterpreta il test di wikipedia.ino: visualizza X, Y, stato pulsante e mirino
+    _tft.setFont(NULL);
     int areaX = 15, areaY = 120, areaW = 290, areaH = 80;
     _tft.fillRect(areaX, areaY, areaW, areaH, COLOR_CARD_BG);
     _tft.drawRect(areaX, areaY, areaW, areaH, COLOR_CARD_BORDER);

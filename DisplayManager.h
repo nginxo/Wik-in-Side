@@ -3,6 +3,8 @@
 #include <Arduino.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7789.h>
+#include "Roboto_Regular9pt7b.h"
+#include "Roboto_Bold12pt7b.h"
 #include "config.h"
 #include "WikiClient.h"
 #include "QRManager.h"

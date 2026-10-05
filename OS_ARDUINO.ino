@@ -8,25 +8,18 @@
 #include "DisplayManager.h"
 #include "TestManager.h"
 
-/*******************************************************************************
- *                                GeoOS ESP32
- *                  Firmware Principale Integrato con Test Mode
- ******************************************************************************/
+
 
 MonumentInfo currentMonument;
 uint32_t lastSearchCheck = 0;
 uint32_t lastWifiRetry = 0;
 bool initialSearchDone = false;
 
-// Gestione Demo Fallback Monte Fuji e Risparmio Energetico Display
+// display e demo
 bool isDemoActive = false;
 uint32_t screenWakeTimeout = 0;
 bool isScreenAwake = true;
 
-// -----------------------------------------------------------------------------
-// Caricamento Fallback Test Demo del Monte Fuji (Pulsante tenuto per 3 sec)
-// Copia il design di default dell'OS (Esplora, Articolo, QR Code, Radar)
-// -----------------------------------------------------------------------------
 void loadMonteFujiDemo() {
     currentMonument.valid = true;
     currentMonument.title = F("Monte Fuji");
@@ -46,31 +39,20 @@ void loadMonteFujiDemo() {
 
     isDemoActive = true;
 
-    // Generazione del codice QR per la pagina Wikipedia del Monte Fuji
+    // Generazione del codice QR
     QR.generate(currentMonument.url.c_str());
 
-    // Imposta coordinate simulate vicine al Monte Fuji per visualizzazione radar coerente
+    // Imposta coordinate
     GPS.setSimulationMode(true, 35.358000f, 138.725000f);
 
-    // Risveglio immediato schermo
+    // Risveglio schermo
     Display.wakeup();
     isScreenAwake = true;
-
-    // Feedback melodico e aptico di notifica monumento da audiovibration.c
     Feedback.playMonumentSequence();
 
-    // Ritorno alla vista Esplora con il design di default
+    // Ritorno alla vista Esplora
     Display.resetScroll();
     Display.switchView(VIEW_EXPLORE);
-
-    Serial.println();
-    Serial.println(F("======================================================="));
-    Serial.println(F("[DEMO] FALLBACK TEST DEMO: MONTE FUJI ATTIVATO!"));
-    Serial.println(F("Pulsante tenuto per 3 secondi -> Modalita Demo avviata."));
-    Serial.println(F("Design di default applicato alle viste Esplora, Articolo, QR e Radar."));
-    Serial.println(F("Monumento presente: lo schermo rimarra' acceso."));
-    Serial.println(F("======================================================="));
-    Serial.println();
 }
 
 void unloadDemo() {
@@ -90,70 +72,38 @@ void unloadDemo() {
     // Poiche' non c'e' piu' un monumento vicino, lo schermo si spegnera' dopo il timeout
     screenWakeTimeout = millis() + SCREEN_TIMEOUT_MS;
 
-    Serial.println();
-    Serial.println(F("======================================================="));
-    Serial.println(F("[DEMO] Fallback test demo disattivato."));
-    Serial.println(F("Nessun monumento vicino: lo schermo si spegnera' dopo 10s."));
-    Serial.println(F("======================================================="));
-    Serial.println();
 }
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
     delay(100);
 
-    Serial.println();
-    Serial.println(F("============================================================"));
-    Serial.println(F("              GeoOS ESP32 - Avvio del Sistema               "));
-    Serial.println(F("      Wikipedia & GPS Interactive Explorer Companion        "));
-    Serial.println(F("============================================================"));
-    Serial.println(F("SUGGERIMENTO: Invia \"TEST\" sulla Seriale in qualunque momento"));
-    Serial.println(F("              per accedere al Menu Diagnostico Hardware.     "));
-    Serial.println(F("              Tieni premuto il pulsante per 3s per avviare   "));
-    Serial.println(F("              il Fallback Test Demo del Monte Fuji.          "));
-    Serial.println(F("============================================================\n"));
-
-    // 1. Inizializzazione Audio & Vibrazione
+    // avvio dell'OS
     Feedback.init();
-
-    // 2. Inizializzazione Schermo ST7789
     Display.init();
     Display.showBootScreen(F("Inizializzazione periferiche..."), 15);
     Feedback.playBootJingle();
-
-    // 3. Inizializzazione Joystick (Auto-calibrazione assi)
     Display.showBootScreen(F("Calibrazione Joystick..."), 35);
     Joystick.init();
-
-    // 4. Inizializzazione Ricevitore GPS
     Display.showBootScreen(F("Avvio modulo GPS..."), 55);
     GPS.init();
-
-    // 5. Inizializzazione Rete Wi-Fi
     Display.showBootScreen(F("Connessione alla rete Wi-Fi..."), 75);
     Wiki.init(DEFAULT_WIFI_SSID, DEFAULT_WIFI_PASS);
     bool wifiOk = Wiki.connect(2500); // Tentativo iniziale veloce
-
-    // 6. Inizializzazione Modulo Test Seriale
     Diagnostics.init();
 
-    Display.showBootScreen(F("GeoOS Pronto!"), 100);
-    delay(500);
+    Display.showBootScreen(F("Dispositivo pronto"), 100);
+    delay(100);
 
-    // Entra nella vista principale dell'OS
+    Display.getTFT().fillScreen(COLOR_BG); 
     Display.switchView(VIEW_EXPLORE);
-    Serial.println(F("[OS] Sistema avviato correttamente in modalita operativa standard."));
 
-    // Finestra iniziale accensione schermo all'avvio (10s)
+    // spegnimento schermo per inutilizzo
     screenWakeTimeout = millis() + SCREEN_TIMEOUT_MS;
     isScreenAwake = true;
 }
 
 void loop() {
-    // -------------------------------------------------------------------------
-    // 1. MONITORAGGIO TRIGGER TEST SERIALE
-    // Se l'utente digita "TEST" (o "test") sulla seriale, si apre la diagnostica
-    // -------------------------------------------------------------------------
     Diagnostics.checkSerialTrigger();
 
     if (Diagnostics.isInTestMode()) {
@@ -161,17 +111,11 @@ void loop() {
         return; // Tutto il resto viene sospeso mentre siamo in test mode
     }
 
-    // -------------------------------------------------------------------------
-    // 2. AGGIORNAMENTO SENSORI & PERIFERICHE
-    // -------------------------------------------------------------------------
+    // aggiorna sensori
     GPS.update();
     Joystick.update();
 
-    // -------------------------------------------------------------------------
-    // 3. RILEVAMENTO ATTIVITA JOYSTICK / PULSANTE & RISVEGLIO SCHERMO
-    // "se non c'e' un monumento vicino lo schermo e' spento e se si muove il
-    //  joystick lo accende e si spegne dopo 10 sec"
-    // -------------------------------------------------------------------------
+
     bool joyMoved = (Joystick.getDirection() != JOY_DIR_NONE) || Joystick.anyMovement();
     bool btnDown = Joystick.isButtonPressed();
     bool userActive = joyMoved || btnDown;
@@ -186,11 +130,7 @@ void loop() {
         screenWakeTimeout = millis() + SCREEN_TIMEOUT_MS;
     }
 
-    // -------------------------------------------------------------------------
-    // 4. TRIGGER FALLBACK TEST DEMO MONTE FUJI (Pulsante tenuto per 3 secondi)
-    // "fai che copia il design di default per un fallback test demo del
-    //  Monte fuji se il pulsante viene tenuto per 3 sec"
-    // -------------------------------------------------------------------------
+
     if (Joystick.buttonHeldTrigger(FUJI_DEMO_HOLD_MS)) {
         if (!isDemoActive) {
             loadMonteFujiDemo();
@@ -199,9 +139,9 @@ void loop() {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // 5. NAVIGAZIONE INTERFACCIA CON JOYSTICK (attiva se schermo acceso)
-    // -------------------------------------------------------------------------
+
+    // 5. NAVIGAZIONE INTERFACCIA CON JOYSTICK 
+
     if (isScreenAwake) {
         // Cambio vista (Sinistra / Destra)
         if (Joystick.justMoved(JOY_DIR_LEFT)) {
@@ -273,9 +213,9 @@ void loop() {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // 6. LOGICA GPS & RICERCA MONUMENTI WIKIPEDIA
-    // -------------------------------------------------------------------------
+
+    // LOGICA GPS
+
     bool needSearch = false;
 
     if (!initialSearchDone) {
@@ -303,16 +243,6 @@ void loop() {
         if (Wiki.searchNearby(queryLat, queryLon, WIKI_DEFAULT_RADIUS, newInfo)) {
             currentMonument = newInfo;
             QR.generate(currentMonument.url.c_str());
-
-            Serial.println(F("======================================================="));
-            Serial.print(F("NUOVO MONUMENTO SCOPERTO: "));
-            Serial.println(currentMonument.title);
-            Serial.print(F("Distanza: "));
-            Serial.print(currentMonument.distance);
-            Serial.println(F(" metri"));
-            Serial.println(F("======================================================="));
-
-            // Esegue la sequenza melodica e aptica di notifica da audiovibration.c
             Feedback.playMonumentSequence();
             Display.resetScroll();
 
@@ -328,11 +258,7 @@ void loop() {
         Wiki.connect(1500);
     }
 
-    // -------------------------------------------------------------------------
-    // 7. GESTIONE RISPARMIO ENERGETICO SCHERMO
-    // Se non c'è un monumento vicino lo schermo è spento.
-    // Se si muove il joystick lo accende e si spegne dopo 10 sec.
-    // -------------------------------------------------------------------------
+    // STANDBY
     if (!currentMonument.valid) {
         // Nessun monumento vicino: dopo 10s di inattività lo schermo si spegne
         if (isScreenAwake && (millis() >= screenWakeTimeout)) {
@@ -348,9 +274,7 @@ void loop() {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // 8. AGGIORNAMENTO GRAFICA DISPLAY (se acceso)
-    // -------------------------------------------------------------------------
+
     Display.update(
         currentMonument,
         Wiki.isConnected(),
@@ -360,5 +284,5 @@ void loop() {
         GPS.getLon()
     );
 
-    delay(20); // Piccolo yield per cooperazione con FreeRTOS / WiFi stack
+    delay(20); 
 }

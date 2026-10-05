@@ -50,11 +50,13 @@ bool TestManager::checkSerialTrigger() {
 
         if (c == '\r' || c == '\n') {
             _serialRxBuffer.trim();
-            if (_serialRxBuffer.equalsIgnoreCase(TEST_COMMAND_TRIGGER)) {
-                _serialRxBuffer = "";
-                if (!_active) {
-                    enterTestMode();
-                    return true;
+            if (_serialRxBuffer.length() > 0) {
+                if (_serialRxBuffer.equalsIgnoreCase(TEST_COMMAND_TRIGGER)) {
+                    _serialRxBuffer = "";
+                    if (!_active) {
+                        enterTestMode();
+                        return true;
+                    }
                 }
             }
             _serialRxBuffer = "";
