@@ -1,4 +1,5 @@
 #include "DisplayManager.h"
+#include "logo.h"
 #include <math.h>
 
 DisplayManager Display;
@@ -10,7 +11,8 @@ DisplayManager::DisplayManager()
       _maxScrollLines(0),
       _needsFullRedraw(true),
       _sleeping(false),
-      _lastStatusBarUpdate(0) {}
+      _lastStatusBarUpdate(0),
+      _bootDrawn(false) {}
 
 void DisplayManager::init() {
     if (TFT_BL >= 0) {
@@ -22,6 +24,7 @@ void DisplayManager::init() {
     _tft.fillScreen(COLOR_BG);
     _tft.setTextWrap(true);
     _sleeping = false;
+    _bootDrawn = false;
 }
 
 Adafruit_ST7789& DisplayManager::getTFT() {
@@ -29,38 +32,37 @@ Adafruit_ST7789& DisplayManager::getTFT() {
 }
 
 void DisplayManager::showBootScreen(const String &status, int progress) {
-    _tft.fillScreen(COLOR_BG);
-    _tft.setFont(&Roboto_Bold12pt7b);
-    _tft.setTextSize(1);
-    _tft.setTextColor(COLOR_ACCENT_AMBER);
+    int logoX = (240 - LOGO_WIDTH) / 2;
+    int logoY = 95;
 
-    int16_t x1, y1;
-    uint16_t w, h;
-    _tft.getTextBounds(F("Wik(in)Side"), 0, 0, &x1, &y1, &w, &h);
-    _tft.setCursor(65, 70);
-    _tft.print(F("Wik(in)Side"));
-
+    // Disegna lo sfondo e il logo solo al primo passaggio per evitare sfarfallio
+    if (!_bootDrawn || progress <= 15) {
+        _tft.fillScreen(COLOR_BG);
+        _tft.drawRGBBitmap(logoX, logoY, (uint16_t*)logo_bitmap, LOGO_WIDTH, LOGO_HEIGHT);
+        _bootDrawn = true;
+    }
 
     // Barra di caricamento
     int barW = 200;
     int barH = 10;
-    int barX = 25;
+    int barX = 20;
     int barY = 280;
 
-    _tft.drawRoundRect(barX - 2, barY - 2, barW + 4, barH + 4, 3, COLOR_CARD_BORDER);
+    // questa è la outline del caricamento ma non so se mi piace
+    // _tft.drawRoundRect(barX - 2, barY - 2, barW + 4, barH + 4, 3, COLOR_CARD_BORDER);
     int fillW = (barW * progress) / 100;
     if (fillW > 0) {
         _tft.fillRoundRect(barX, barY, fillW, barH, 2, COLOR_ACCENT_GREEN);
     }
 
     // Stato di caricamento
-    _tft.fillRect(20, 165, SCREEN_WIDTH - 40, 24, COLOR_BG);
+    _tft.fillRect(20, 240, 200, 20, COLOR_BG);
     _tft.setFont(NULL);
     _tft.setTextSize(1);
     _tft.setTextColor(COLOR_TEXT_WHITE);
-    int textX = (SCREEN_WIDTH - (status.length() * 6)) / 2;
+    int textX = (240 - (status.length() * 6)) / 2;
     if (textX < 20) textX = 20;
-    // _tft.setCursor(textX, 172);
+    // _tft.setCursor(textX, 245);
     // _tft.print(status);
 }
 
@@ -69,6 +71,7 @@ void DisplayManager::switchView(OSView view) {
         _currentView = view;
         _scrollLine = 0;
         _needsFullRedraw = true;
+        _bootDrawn = false;
     }
 }
 
@@ -151,10 +154,8 @@ void DisplayManager::drawStatusBar(bool wifiOk, bool gpsOk, int sats) {
 void DisplayManager::drawExploreView(const MonumentInfo &monument, float lat, float lon) {
     _tft.fillRect(0, 25, SCREEN_WIDTH, SCREEN_HEIGHT - 25, COLOR_BG);
 
-    // Box principale monumento
-    // int boxX = 12, boxY = 34, boxW = SCREEN_WIDTH - 48, boxH = 150;
-    // _tft.fillRoundRect(boxX, boxY, boxW, boxH, 8, COLOR_CARD_BG);
-    // _tft.drawRoundRect(boxX, boxY, boxW, boxH, 8, COLOR_CARD_BORDER);
+    // Coordinate base contenuti (box/card rimosso)
+    int boxX = 12, boxY = 34;
 
     if (monument.valid) {
         // Titolo Monumento con Roboto Bold
@@ -191,7 +192,7 @@ void DisplayManager::drawExploreView(const MonumentInfo &monument, float lat, fl
 
         // Anteprima testo
         _tft.setFont(NULL);
-        _tft.setTextSize(1);
+        _tft.setTextSize(3);
         _tft.setTextColor(COLOR_TEXT_WHITE);
         _tft.setCursor(boxX + 12, boxY + 104);
         String preview = monument.extract;
@@ -201,19 +202,20 @@ void DisplayManager::drawExploreView(const MonumentInfo &monument, float lat, fl
         _tft.print(preview);
 
     } else {
-        _tft.setFont(&Roboto_Bold12pt7b);
-        _tft.setTextSize(1);
-        _tft.setTextColor(COLOR_TEXT_MUTED);
-        _tft.setCursor(boxX + 25, boxY + 60);
-        _tft.print(F("Ricerca"));
-        _tft.setCursor(boxX + 25, boxY + 90);
-        _tft.print(F("monumenti..."));
+        int logoX = (240 - LOGO_WIDTH) / 2;
+        int logoY = 95;
+        _tft.drawRGBBitmap(logoX, logoY, (uint16_t*)logo_bitmap, LOGO_WIDTH, LOGO_HEIGHT);
     }
 
-
-    // Barra istruzioni footer
+    // test con roboto 9pt
+    _tft.setFont(&Roboto_Regular9pt7b);
+    _tft.setTextSize(1);
     _tft.setTextColor(COLOR_ACCENT_CYAN);
-    _tft.setCursor(15, 300);
+
+    int16_t x1, y1;
+    uint16_t w, h;
+    _tft.getTextBounds(F("Muoviti con l'analogico"), 0, 0, &x1, &y1, &w, &h);
+    _tft.setCursor((240 - w) / 2, 305);
     _tft.print(F("Muoviti con l'analogico"));
 }
 
